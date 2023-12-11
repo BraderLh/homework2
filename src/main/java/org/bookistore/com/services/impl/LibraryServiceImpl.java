@@ -1,21 +1,25 @@
 package org.bookistore.com.services.impl;
 
 import org.bookistore.com.dao.BookDao;
+import org.bookistore.com.dao.UserBookDao;
 import org.bookistore.com.dao.UserDao;
 import org.bookistore.com.domain.models.Book;
 import org.bookistore.com.domain.models.User;
 import org.bookistore.com.services.LibraryService;
 
 import java.sql.SQLException;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class LibraryServiceImpl implements LibraryService {
     private final UserDao userDao;
     private final BookDao bookDao;
-
-    public LibraryServiceImpl(UserDao userDao, BookDao bookDao) {
+    private final UserBookDao userBookDao;
+    public LibraryServiceImpl(UserDao userDao, BookDao bookDao, UserBookDao userBookDao) {
         this.userDao = userDao;
         this.bookDao = bookDao;
+        this.userBookDao = userBookDao;
     }
 
     @Override
@@ -42,7 +46,7 @@ public class LibraryServiceImpl implements LibraryService {
     public void updateBook(Book book) throws SQLException {
         Book updatedBook = bookDao.getBookById(book.getBookId());
         if (!book.getName().isEmpty()) updatedBook.setName(book.getName());
-        if (!book.getAuthor().isEmpty()) updatedBook.setName(book.getAuthor());
+        if (!book.getAuthor().isEmpty()) updatedBook.setAuthor(book.getAuthor());
         if (book.getGenre() != null) updatedBook.setGenre(book.getGenre());
         if (bookDao.updateBook(updatedBook)>0) {
             System.out.println("Actualización de libros exitosa");
@@ -150,6 +154,8 @@ public class LibraryServiceImpl implements LibraryService {
             if (loanUsername != null) {
                 if (!loanedBook.isLoaned()) {
                     if (bookDao.loanBook(loanedBook, loanUsername)) {
+                        loanedBook.setLoaned(true);
+                        bookDao.updateBook(loanedBook);
                         System.out.println("Prestamo exitoso");
                     } else {
                         System.out.println("Prestamo no fue exitoso");
@@ -175,6 +181,8 @@ public class LibraryServiceImpl implements LibraryService {
             if (loanUsername != null) {
                 if (returnedBook.isLoaned()) {
                     if (bookDao.returnBook(returnedBook, loanUsername)) {
+                        returnedBook.setLoaned(false);
+                        bookDao.updateBook(returnedBook);
                         System.out.println("Devolución exitosa!");
                     } else {
                         System.out.println("Devolución no fue exitosa");
@@ -187,6 +195,19 @@ public class LibraryServiceImpl implements LibraryService {
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void showHistory() throws SQLException {
+        Map<Integer, Integer> users_books = userBookDao.showHistory();
+        User user = new User();
+        Book book = new Book();
+        for (Map.Entry<Integer, Integer>  entry : users_books.entrySet()) {
+            user = userDao.getUserById(entry.getKey());
+            book = bookDao.getBookById(entry.getValue());
+            System.out.println("User = " + user.toString() +
+                    ", Book = " + book.toString());
         }
     }
 }
